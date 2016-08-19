@@ -1,0 +1,13 @@
+Package: dviewer
+Type: Package
+Title: Displays Datatrack Data Dependency Graph Using HTML Widget
+Version: 0.1.0
+Author: Philip Eichinski
+Maintainer: Philip Eichinski <philip.eichinski@qut.edu.au>
+Description: Uses the dviewer javascript library with a html widget to display the Datatrack data dependency graph
+License: GPL-2
+LazyData: TRUE
+Imports:
+    rjson,
+    htmlwidgets,
+RoxygenNote: 5.0.1
