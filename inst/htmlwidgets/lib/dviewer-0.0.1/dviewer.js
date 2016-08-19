@@ -1,8 +1,8 @@
 /**
- * TODO: dont crash when a dependency doesnt exist. Just remove dependency and give a warning in the console.
+ *  Copyright 2016 Philip Eichinski
+ *  license: GPL-2
  *
  */
-
 
 oi = {};
 
