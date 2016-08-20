@@ -22,3 +22,9 @@ devtools::install_github("peichins/dviewer")
 ## License
 
 GPL-2
+
+## Versioning
+
+This project uses semantic versioning
+
+(http://semver.org/)
