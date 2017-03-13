@@ -7,6 +7,9 @@
 demoData()
 }
 \description{
-set up demo with data
+Copy loaded R test_data to the demo_data.js file.
+}
+\details{
+Use this function to replace the demo_data.js inside the library, so that it can be used for debugging the javascript.
 }
 

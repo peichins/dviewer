@@ -120,6 +120,10 @@
             .tooltip td  {
                 display: table-cell;
             }
+            
+            .colnames {
+                min-height: 20px;
+            }
 
             .tooltip td.name, .colnames span.colnames_title {
                 color: #007700;
@@ -127,11 +131,15 @@
                 display: table-cell;
                 text-align: right
             }
-
+            
             .colnames span.colnames_title {
                 float: left;
                 position: fixed;
                 background: #ffffff;
+            }
+            
+            .colnames span.colnames_content {
+                display: none;
             }
 
             .colnames span.colnames_content:before {

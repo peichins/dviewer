@@ -2,8 +2,6 @@
 
 export(dataGraph)
 export(demoData)
-export(renderSigma)
-export(sigmaOutput)
 export(testDviewer)
 import(htmlwidgets)
 import(rjson)

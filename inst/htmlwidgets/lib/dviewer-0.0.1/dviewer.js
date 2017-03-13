@@ -694,11 +694,6 @@ oi.move = function () {
 
 };
 
-
-
-
-
-
 /**
  * Draw all the svg elements
  */
@@ -913,6 +908,14 @@ oi.vMouseOver = function (v) {
     oi.tooltip.html(oi.tooltipText(v))
         .style('left', x + 'px')
         .style('top',  y + 'px')
+        
+    var colnames_title = oi.tooltip.select(".colnames_title");  
+    colnames_title.on('click', function () {
+        var content_el = oi.tooltip.select(".colnames_content");
+        var display = (content_el.style('display')) === 'none' ? 'block' : 'none';
+        content_el.style('display', display);
+    
+    });
 
 
 
@@ -1104,15 +1107,19 @@ oi.tooltipDl = function (params, class_name) {
 
 oi.colnames = function (colnames) {
     var html;
-
-    colnames = colnames.join(', ');
-    html = '<div class="colnames"><span class="colnames_title">Cols</span><span class="colnames_content">';
+    
+    var max_num_colnams = 10;
+    
+    var title = "cols (" + colnames.length + ")";
+    
+        colnames = colnames.join(', ');
+    html = '<div class="colnames"><span class="colnames_title">'+title+'</span><span class="colnames_content">';
     html += colnames;
     html += '</span></div>';
     return(html);
 
-
 };
+
 
 
 
@@ -1292,14 +1299,10 @@ ff.setCutoffDate = function (date) {
 
 ff.dateMsg = function (date) {
 
-
     var ms_ago = new Date() - util.parseDate(date);
-
 
     // firefox (and Rstudio) can't parse date using the supplied format,
     // so we need to manually parse
-
-
 
     var mins_ago = ms_ago / (1000 * 60);
     var hours_ago = mins_ago / 60;
