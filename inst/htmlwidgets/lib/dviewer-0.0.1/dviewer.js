@@ -61,9 +61,9 @@ oi.tooltipInit = function () {
         .style('opacity', 0)
         .classed('tooltip', true)
         .on('mouseover', oi.tooltipOver)
-        .on('mouseout', oi.tooltipOut)
+        .on('mouseout', oi.tooltipOut);
 
-}
+};
 
 
 oi.resize = function () {
@@ -247,7 +247,7 @@ oi.setupRows = function () {
 
             var g_x;
 
-            if (i == 0) {
+            if (i === 0) {
                 g_x = oi.config.group_spacing;
             } else {
                 g_x = row_groups[i-1].pos.x + row_groups[i-1].pos.w + oi.config.group_spacing;
@@ -272,12 +272,12 @@ oi.setupRows = function () {
                         return({
                             x: this.cur_pos.x + this.group.cur_pos.x,
                             y: this.group.cur_pos.y + oi.cur_pos.group_title_height
-                        })
+                        });
                     } else {
                         return({
                             x: this.pos.x + this.group.pos.x,
                             y: this.group.pos.y + oi.pos.group_title_height
-                        })
+                        });
                     }
 
                 };
@@ -384,7 +384,7 @@ oi.getRow = function (row_num) {
     return oi.groups.filter(function (g) {
         return g.row == row_num;
     });
-}
+};
 
 
 /**
@@ -515,7 +515,7 @@ oi.moveTowardsOptimal = function () {
     var has_moved = false,
         change;
     oi.groups.forEach(function (g) {
-        change = (g.pos.optimal_dist * 0.4)
+        change = (g.pos.optimal_dist * 0.4);
         g.pos.x = g.pos.x + change;
         if (Math.abs(change) > 1) {
             // if this group moved more than 1 pixel in this update
@@ -523,7 +523,7 @@ oi.moveTowardsOptimal = function () {
         }
     });
     return has_moved;
-}
+};
 
 /**
  * for all pairs in the group
@@ -589,7 +589,7 @@ oi.fixOverlappingPair = function (a,b) {
     a.pos.x += change_amount;
     b.pos.x -= change_amount;
 
-    moved = Math.abs(change_amount) > 2
+    moved = Math.abs(change_amount) > 2;
 
     if (!moved) {
         return false;
@@ -655,7 +655,7 @@ oi.move = function () {
 
         g.el.select('rect').transition()
             .attr("height", oi.pos.group_height)
-            .attr("width", g.pos.w).duration(d)
+            .attr("width", g.pos.w).duration(d);
         g.el.select('text').transition()
             .attr('y', oi.pos.group_title_height / 2 + 5)
             .attr('x',g.pos.w / 2).duration(d);
@@ -666,7 +666,7 @@ oi.move = function () {
             oi.setPos(v.el, v.pos.x, oi.pos.group_title_height, d);
             v.el.select('rect')
                 .attr("height", oi.pos.version_height)
-                .attr("width", v.pos.w)
+                .attr("width", v.pos.w);
             v.el.select('text')
                 .attr("x",  v.pos.w / 2)
                 .attr("y", 20);
@@ -719,7 +719,7 @@ oi.draw = function () {
                 v.cur_pos = null;
             } else if (!v.hidden && typeof(v.el) !== 'object') {
                 // version is not hidden and not drawn, so draw it
-                oi.drawV(v, g.el)
+                oi.drawV(v, g.el);
             }
         });
     });
@@ -908,13 +908,13 @@ oi.vMouseOver = function (v) {
     oi.tooltip.html(oi.tooltipText(v))
         .style('left', x + 'px')
         .style('top',  y + 'px')
-        
-    var colnames_title = oi.tooltip.select(".colnames_title");  
+
+    var colnames_title = oi.tooltip.select(".colnames_title");
     colnames_title.on('click', function () {
         var content_el = oi.tooltip.select(".colnames_content");
         var display = (content_el.style('display')) === 'none' ? 'block' : 'none';
         content_el.style('display', display);
-    
+
     });
 
 
@@ -1107,11 +1107,11 @@ oi.tooltipDl = function (params, class_name) {
 
 oi.colnames = function (colnames) {
     var html;
-    
+
     var max_num_colnams = 10;
-    
+
     var title = "cols (" + colnames.length + ")";
-    
+
         colnames = colnames.join(', ');
     html = '<div class="colnames"><span class="colnames_title">'+title+'</span><span class="colnames_content">';
     html += colnames;
@@ -1159,13 +1159,8 @@ ff.init = function (group) {
         .data([ {"x":0, "y":0} ]);
 
     ff.cutoff_date = null;
-
     ff.selected_group = group;
-
     ff.createGroupSelector();
-
-
-
     ff.el.call(d3.behavior.drag().on('drag', function (d,i) {
         // there might be a better way to do this
         // prevent drag element when dragging range slider
