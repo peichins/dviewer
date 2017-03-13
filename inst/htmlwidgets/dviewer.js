@@ -12,7 +12,7 @@ HTMLWidgets.widget({
 
       renderValue: function(x) {
           data = JSON.parse(x.data);
-          console.log(x)
+          console.log(x);
           oi.init(el.id, JSON.parse(x.data), x.settings.group);
 
       },
