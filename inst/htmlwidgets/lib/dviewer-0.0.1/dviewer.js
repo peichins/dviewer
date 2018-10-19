@@ -287,39 +287,53 @@ oi.setupRows = function () {
 };
 
 /**
- * Removes groups that are not dependencies or dependents of the given group
+ * Removes groups that are not dependencies or dependents of the given group.
  * @param group_name
+ * @param cutoff_date
  */
 oi.setHidden = function (group_name, cutoff_date) {
 
+
+    // initialise hidden to true for all groups and versions
+    oi.all_groups.forEach(function (g) {
+        g.hidden = true;
+        g.row = -1;
+        g.selected = false;
+        g.all_versions.forEach(function (v) {
+            v.hidden = true;
+        });
+    });
+
     // list of versions and lines to activate
-    var selected_group, chain, combined_chain = [];
+    var selected_group, apply_to;
 
     selected_group = oi.getGroup(group_name);
 
-    if (typeof(selected_group) === 'object') {
 
-        // initialise hidden to true for all groups and versions
-        oi.all_groups.forEach(function (g) {
-            g.hidden = true;
-            g.row = -1;
-            g.selected = false;
-            g.all_versions.forEach(function (v) {
-                v.hidden = true;
-            });
-        });
+    // go through all groups or only the selected group and unhide where needed
+    if (typeof(selected_group) === 'object') {
+        apply_to = [selected_group];
+        selected_group.selected = true;
+    } else {
+        apply_to = oi.all_groups;
+    }
+
+    // iterates through all groups and all versions in each group,
+    // then traverses the full tree from each version. Not very efficient as it will visit the
+    // same nodes many times. TODO: optimize this
+    apply_to.forEach(function (group) {
+
+        var combined_chain = [];
 
         // get a chain of links that come from the given group
-        oi.getGroup(group_name).all_versions.forEach( function (v) {
-            chain = [];
+        group.all_versions.forEach( function (v) {
+            var chain = [];
             if (v.date >= cutoff_date || typeof(cutoff_date) !== 'string') {
-                oi.getChain(v, true, chain, true);
-                oi.getChain(v, false, chain, true);
+                oi.getChain(v, 0, chain, true);
                 v.hidden = false;
             }
             combined_chain = combined_chain.concat(chain);
         });
-
 
         // set the groups and versions that connect to each link in that chain to not hidden
         combined_chain.forEach(function (l) {
@@ -329,28 +343,10 @@ oi.setHidden = function (group_name, cutoff_date) {
             l.to.hidden = false;
         });
 
+    });
 
-
-        selected_group.selected = true;
-
-
-
-    } else {
-
-        // set hidden to false for all groups and versions, since group_name was not supplied
-        oi.all_groups.forEach(function (g) {
-            g.hidden = false;
-            g.row = -1;
-            g.selected = false;
-            g.all_versions.forEach(function (v) {
-                v.hidden = false;
-            });
-        });
-
-    }
-
-
-
+    // now the 'hidden' property has been set where needed, iterate through and apply
+    // changes based on this value.
     // set versions to be the non hidden values from all_versions
     // set up_links and down_links to be the non_hidden values of all_up_links and all_down_links
     oi.all_groups.forEach(function (g) {
@@ -699,9 +695,8 @@ oi.move = function () {
  */
 oi.draw = function () {
 
+    oi.groups.forEach(function (g) {
 
-
-    oi.all_groups.forEach(function (g) {
         if (g.hidden && typeof(g.el) === 'object') {
             // group is hidden but drawn, remove it
             g.el.remove();
@@ -711,17 +706,34 @@ oi.draw = function () {
             // group is not hidden and not drawn, so draw it
             oi.drawGroup(g);
         }
-        g.all_versions.forEach(function(v) {
-            if (v.hidden && typeof(v.el) === 'object') {
-                // version is hidden but drawn, remove it
-                v.el.remove();
-                delete v.el;
-                v.cur_pos = null;
-            } else if (!v.hidden && typeof(v.el) !== 'object') {
-                // version is not hidden and not drawn, so draw it
-                oi.drawV(v, g.el);
-            }
-        });
+        if (!g.hidden) {
+            // it is possible through date limiting that
+            // some versions will not be hidden even if their group is
+            g.all_versions.forEach(function(v) {
+                if (v.hidden && typeof(v.el) === 'object') {
+                    // version is hidden but drawn, remove it
+                    v.el.remove();
+                    delete v.el;
+                    v.cur_pos = null;
+                } else if (!v.hidden && typeof(v.el) !== 'object') {
+                    // version is not hidden and not drawn, so draw it
+                    oi.drawV(v, g.el);
+                }
+            });
+        }
+
+        // if (typeof(g.el) !== 'object') {
+        //     oi.drawGroup(g);
+        // }
+        // g.el.attr('visibility', g.hidden ? 'hidden' : 'visible');
+        //
+        //     g.versions.forEach(function(v) {
+        //         if (typeof(v.el) !== 'object') {
+        //             oi.drawV(v, g.el);
+        //         }
+        //         v.el.attr('visibility', v.hidden ? 'hidden' : 'visible');
+        //     });
+
     });
 
     oi.drawLinks();
@@ -1011,12 +1023,10 @@ oi.activate = function (v, class_name, activate_down) {
     oi.classAll('off', false);
 
     // list of versions and lines to activate
-    var active_links = [];
-
-    oi.getChain(v, true, active_links, false);
+    var active_links = oi.getChain(v, 1, [], false);
 
     if (activate_down) {
-        oi.getChain(v, false, active_links, false);
+        oi.getChain(v, -1, active_links, false);
     }
 
     v.el.classed(class_name, true);
@@ -1048,19 +1058,36 @@ oi.activate = function (v, class_name, activate_down) {
  * version v to the link_list, then calls this same function on
  * the linked versions. At the en, link_list will contain all the links in the chain
  * @param v
- * @param up
- * @param link_list
+ * @param direction int: 1 = up, -1 = down, 0 = both
+ * @param link_list, array to append to, passed by reference
  */
-oi.getChain = function (v, up, link_list, include_hidden) {
+oi.getChain = function (v, direction, link_list, include_hidden) {
 
-    var links;
-
-    if (include_hidden) {
-        links = (up) ? v.all_up_links : v.all_down_links;
-    } else {
-        links = (up) ? v.up_links : v.down_links;
+    if (!Array.isArray(link_list)) {
+        link_list = [];
     }
 
+    if (direction === 0) {
+        var up_list = oi.getChain(v, 1, [], include_hidden);
+        var down_list = oi.getChain(v, -1, [], include_hidden);
+        // this is passed by reference
+        link_list.push(...up_list.concat(down_list));
+        return link_list;
+    } else {
+        var up = (direction > 0);
+    }
+
+    var links, up_links, down_links;
+
+    if (include_hidden) {
+        up_links = v.all_up_links;
+        down_links = v.all_down_links;
+    } else {
+        up_links = v.up_links;
+        down_links = v.down_links;
+    }
+
+    links = up ? up_links : down_links;
 
     // check for loops
     links.forEach(function (l){
@@ -1069,6 +1096,8 @@ oi.getChain = function (v, up, link_list, include_hidden) {
             oi.getChain((up ? l.from : l.to), up, link_list, include_hidden);
         }
     });
+
+    return link_list;
 };
 
 
@@ -1127,9 +1156,9 @@ oi.colnames = function (colnames) {
  * returns a version based on the name and version number
  */
 oi.getV = function (name, version_num) {
-    var v, g =  oi.getGroup(name);
+    var v, g = oi.getGroup(name);
     v = g.versions.filter(function (version) {
-        return version.v == version_num;
+        return version.v === version_num;
     });
     return v[0];
 };
@@ -1142,7 +1171,7 @@ oi.getVs = function (v_list) {
     res = [];
     Object.keys(v_list).forEach(function (group_name) {
         res.push(oi.getV(group_name, v_list[group_name]));
-    })
+    });
     return(res);
 };
 
@@ -1164,9 +1193,9 @@ ff.init = function (group) {
     ff.el.call(d3.behavior.drag().on('drag', function (d,i) {
         // there might be a better way to do this
         // prevent drag element when dragging range slider
-        target = d3.event.sourceEvent.target;
+        var target = d3.event.sourceEvent.target;
         //target = d3.event.sourceEvent.srcElement
-        if (target.tagName == 'INPUT') return;
+        if (target.tagName === 'INPUT') return;
         d.x += d3.event.dx;
         d.y += d3.event.dy;
         d3.select(this).style("transform", "translate(" + d.x + "px," + d.y + "px)");
@@ -1179,12 +1208,13 @@ ff.createGroupSelector = function () {
 
     var o;
 
+    // create a dropdown select to select the ff.selected_group
     ff.group_selector = ff.el.append('div')
         .attr('id', 'group_selector')
         .append('select')
         .on('change', function (){
             ff.selected_group = this.options[this.selectedIndex].value
-            ff.createDateSelector(ff.selected_group);
+            ff.initDateSelectorForGroup(ff.selected_group);
             oi.selectGroup(ff.selected_group, ff.cutoff_date)
         });
     ff.group_selector.append('option')
@@ -1197,14 +1227,12 @@ ff.createGroupSelector = function () {
             .text(g.name);
         if (typeof(ff.selected_group) === 'string' && ff.selected_group === g.name) {
             o.attr('selected', "selected");
-            ff.createDateSelector(ff.selected_group);
         }
-
     });
 
+    // create a date selector, initialised to the selected group
+    ff.createDateSelector(ff.selected_group);
 };
-
-
 
 
 
@@ -1217,46 +1245,17 @@ ff.createGroupSelector = function () {
  */
 ff.createDateSelector = function (group) {
 
-    var groups, g;
+    var groups, g, all_dates;
 
     ff.cutoff_date = null;
 
-    if (typeof(ff.ds) == 'object') {
-        ff.ds.remove();
-    }
-
-
-
-    g = oi.getGroup(group);
-
-    if (typeof(g) === 'undefined') {
-        return;
-    }
-
-    // get dates for this selected group or for all groups
-    // depending on whether a group name was passed.
-    // if a group name was passed, construct an array length 1, so that
-    // the same operation can be used to get a flat array of dates
-    // - currently only doing this if a group is selected, but this way we can add in some
-    //   action for changing the style of versions before selected date for all groups later
-    groups = (typeof(g) !== 'undefined') ? [g] : oi.groups;
-    ff.dates = [].concat.apply([], groups.map(function (g) { return g.all_versions.map(function (v) { return(v.date)}) }));
-
-    ff.dates.sort();
-
-
-    // initialise cutoff date to the oldest to show all
-    ff.cutoff_date = ff.dates[0];
-
-
-
-    if (ff.dates.length === 1) {
-        return;
-    }
+    ff.all_dates = ff.getDateListClipped();
+    ff.dates = ff.all_dates;
+    ff.cutoff_date = ff.all_dates[0];
 
     ff.ds = ff.el.append('div');
     ff.ds.append('p').node().innerHTML = 'Date range:'
-    ff.ds.append('input')
+    ff.slider = ff.ds.append('input')
         .attr('type','range')
         .attr('min', 0)
         .attr('max', ff.dates.length - 1)
@@ -1274,11 +1273,79 @@ ff.createDateSelector = function (group) {
         '<p>to: <span id="to_date"></span></p>';
 
     ff.from_date = ff.el.select('#from_date');
-    ff.ds.select('#from_date').node().innerHTML = ff.dateMsg(ff.cutoff_date);
-    ff.ds.select('#to_date').node().innerHTML = ff.dateMsg(ff.dates[ff.dates.length - 1]);
+    ff.to_date = ff.el.select('#to_date');
 
+    ff.initDateSelectorForGroup = function (group) {
+        g = oi.getGroup(group);
+        // the list of dates to show if a group is selected is just the dates of the group's version
+        // but if no group is selected, the list of dates will come from all versions, and for each version
+        // will be the oldest date of the version and all its relatives.
+        if (g !== undefined) {
+            ff.dates =  ff.getDateList(g);
+        } else {
+            ff.dates =  ff.getDateListClipped(null);
+        }
+
+        ff.slider.attr('max', ff.dates.length - 1);
+        // from date is the maximum of the set cutoff date and the minimum date of this group
+        var from_date = [ff.cutoff_date, ff.dates[0]].sort()[1];
+        ff.from_date.node().innerHTML = ff.dateMsg(from_date);
+        ff.to_date.node().innerHTML = ff.dateMsg(ff.dates[ff.dates.length - 1]);
+    };
+
+    ff.initDateSelectorForGroup(group);
 
 };
+
+
+/**
+ * Gets a list of unique dates from groups
+ * @param groups array of groups. If not supplied uses all groups
+ * @param datefunction. how to extract the date from a version. If not supplied will just be the version's date
+ * @return {Array.<*>}
+ */
+ff.getDateList = function (groups, datefunction) {
+
+    if (!groups) {
+        groups = oi.all_groups
+    }
+
+    if (!Array.isArray(groups)) {
+        // maybe should be all groups
+        groups = [groups];
+    }
+
+    // default datefunction is to just get the property of the version
+    if (!(datefunction instanceof Function)) {
+        datefunction = function (v) {
+            return(v.date);
+        };
+    }
+
+    var dates = [].concat.apply([], groups.map((g) => {
+        return g.all_versions.map(datefunction)
+    }));
+
+    // concatenates each array of group-version-dates together, then removes duplicates with Set conversion, then sorts.
+    return Array.from(new Set(dates)).sort();
+};
+
+
+// for each version, get the date that is the minimum of its date and the date of all of its children and ancestors
+ff.getDateListClipped = function (groups) {
+    return ff.getDateList(groups, function (v) {
+        var dates, dates_up, dates_down;
+        // array of versions that are linked to this one
+        dates_up = oi.getChain(v, 1, [], true).map((l) => l.to.date);
+        dates_down = oi.getChain(v, -1, [], true).map((l) => l.from.date);
+        // map array of versions to array of dates
+        dates = [v.date].concat(dates_up).concat(dates_down);
+        // get minimum date string
+        return dates.reduce((a,c) => (a < c) ? c : a);
+    });
+};
+
+
 
 /**
  * Sets the cutoff date. Changes the visible versions
@@ -1310,9 +1377,7 @@ ff.dateMsg = function (date) {
         ago = Math.round(mins_ago) + " mins";
     }
     return date + " (" + ago + " ago)";
-}
-
-
+};
 
 
 util = {};
@@ -1352,17 +1417,14 @@ util.zoom = function (el, by, x, y) {
 
     el.node().setAttribute("transform", "scale("+value+") translate("+ right +","+down+")");
 
-
 };
-
 
 util.shallowClone = function (obj) {
 
     // for i in obj might be faster
     return JSON.parse(JSON.stringify(obj));
 
-}
-
+};
 
 /**
  * returns a date object given a string in the form yyyy-mm-dd hh:mm:ss
